@@ -41,13 +41,12 @@ export const Auth = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.detail ?? "Sign in failed");
       }
-      const { access_token } = await res.json();
-      localStorage.setItem("token", access_token);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

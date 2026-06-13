@@ -1,19 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export function Navbar() {
   const router = useRouter();
-  const [loggedIn, setLoggedIn] = useState(
-    () => typeof window !== "undefined" && !!localStorage.getItem("token")
-  );
+  const [loggedIn, setLoggedIn] = useState(false);
 
-  const handleSignOut = () => {
-    localStorage.removeItem("token");
+  useEffect(() => {
+    fetch(`${API_BASE}/auth/me`, { credentials: "include" })
+      .then((res) => setLoggedIn(res.ok))
+      .catch(() => setLoggedIn(false));
+  }, []);
+
+  const handleSignOut = async () => {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
     setLoggedIn(false);
-    router.push("/auth");
+    router.push("/");
   };
 
   return (
