@@ -18,6 +18,7 @@ class Settings:
         "GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback"
     )
     frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    geoapify_api_key: str = os.getenv("GEOAPIFY_API_KEY", "")
 
 
 settings = Settings()
