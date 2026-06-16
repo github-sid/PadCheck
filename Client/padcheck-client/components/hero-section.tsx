@@ -1,13 +1,38 @@
 "use client";
 
-import { Search } from "lucide-react";  
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/header";
 import { SearchBox } from "./searchbox";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export function HeroSection() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+  const [placeId, setPlaceId] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSearch() {
+    if (!placeId) return;
+    setError(null);
+    setSearching(true);
+    try {
+      const res = await fetch(`${API_BASE}/properties/lookup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ place_id: placeId }),
+      });
+      if (!res.ok) throw new Error("Could not find that property");
+      const address = await res.json();
+      router.push(`/property/${address.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setSearching(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
@@ -24,27 +49,32 @@ export function HeroSection() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              handleSearch();
             }}
             className="flex items-center bg-white ring-1 ring-black/5 rounded-2xl p-2 max-w-2xl"
           >
-            <SearchBox/>
-            {/* <div className="flex-1 px-4 flex items-center gap-3">
-              <Search className="size-4 text-neutral-400 shrink-0" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                type="text"
-                placeholder="Enter an address, zip, or city..."
-                className="w-full bg-transparent border-none text-neutral-900 placeholder-neutral-400 focus:outline-none text-sm h-10"
-              />
-            </div> */}
+            <SearchBox
+              onSelect={(s) => {
+                setQuery(s.address_line1);
+                setPlaceId(s.place_id);
+                setError(null);
+              }}
+              onQueryChange={(q) => {
+                setQuery(q);
+                setPlaceId(null);
+              }}
+            />
             <button
               type="submit"
-              className="bg-[#2d332d] text-neutral-50 text-sm font-medium px-6 py-2.5 rounded-xl"
+              disabled={!placeId || searching}
+              className="bg-[#000000] text-neutral-50 text-sm font-medium px-6 py-2.5 rounded-xl disabled:opacity-50"
             >
-              Search properties
+              {searching ? "Searching…" : "Search properties"}
             </button>
           </form>
+          {error && (
+            <p className="text-sm text-red-600 mt-3 px-1">{error}</p>
+          )}
         </div>
       </section>
 

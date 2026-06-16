@@ -18,9 +18,10 @@ type Suggestion = {
 type Props = {
   onSelect?: (suggestion: Suggestion) => void;
   onSearch?: (query: string) => void;
+  onQueryChange?: (query: string) => void;
 };
 
-export function SearchBox({ onSelect, onSearch }: Props) {
+export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,7 @@ export function SearchBox({ onSelect, onSearch }: Props) {
   function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setQuery(val);
+    onQueryChange?.(val);
     if (val.length < MIN_CHARS) {
       setSuggestions([]);
       setOpen(false);

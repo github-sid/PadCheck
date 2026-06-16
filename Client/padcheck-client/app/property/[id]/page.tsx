@@ -1,69 +1,109 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { Star } from "lucide-react";
+import { notFound } from "next/navigation";
+import {
+  Star, MapPin, Hash, Calendar,
+  Footprints, Bus, Train, ShoppingCart, Pill, Stethoscope, Hospital, GraduationCap, Trees, Building2,
+} from "lucide-react";
 import { Navbar } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { WriteReviewButton } from "@/components/write-review-button";
 
-const PLACEHOLDER_PROPERTY = {
-  id: "1",
-  address: "42 Elmwood Avenue, Apt 3B",
-  city: "San Francisco",
-  region: "CA",
-  postal_code: "94117",
-  property_type: "Apartment",
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+type Address = {
+  id: string;
+  street_address: string;
+  unit_number: string | null;
+  city: string;
+  province: string;
+  postal_code: string;
+  lat: string | number | null;
+  lng: string | number | null;
+  neighbourhood: string | null;
+  ward: string | null;
+  created_at: string;
 };
 
-const PLACEHOLDER_REVIEWS = [
-  {
-    id: "r1",
-    title: "Great landlord, loved the neighborhood",
-    body: "Lived here for two years. The landlord was always responsive and fixed issues within a day or two. The neighborhood is walkable and safe. Only downside was the rent increased significantly at renewal.",
-    rating_landlord: 5,
-    rating_value: 3,
-    rating_neighborhood: 5,
-    rating_maintenance: 4,
-    created_at: "2024-11-01T00:00:00Z",
-    display_name: "Jordan M.",
-  },
-  {
-    id: "r2",
-    title: "Decent place, slow on repairs",
-    body: "The apartment itself is nice and the location is convenient. Maintenance requests sometimes took weeks. Overall a fair experience for the price.",
-    rating_landlord: 3,
-    rating_value: 4,
-    rating_neighborhood: 4,
-    rating_maintenance: 2,
-    created_at: "2024-08-15T00:00:00Z",
-    display_name: "Alex K.",
-  },
-];
+type StaticData = {
+  walk_score: number | null;
+  transit_score: number | null;
+  nearest_subway_m: number | null;
+  nearest_subway_name: string | null;
+  nearest_bus_stop_m: number | null;
+  nearest_supermarket_m: number | null;
+  nearest_pharmacy_m: number | null;
+  nearest_hospital_m: number | null;
+  nearest_clinic_m: number | null;
+  nearest_school_m: number | null;
+  nearest_school_name: string | null;
+  nearest_park_m: number | null;
+};
 
-function avg(reviews: typeof PLACEHOLDER_REVIEWS) {
-  if (!reviews.length) return { landlord: 0, value: 0, neighborhood: 0, maintenance: 0, overall: 0 };
+type Review = {
+  id: string;
+  rating_overall: number;
+  rating_noise: number;
+  rating_safety: number;
+  rating_transit: number;
+  rating_amenities: number;
+  rating_landlord: number;
+  review_text: string | null;
+  created_at: string;
+};
+
+type PropertyPageData = {
+  address: Address;
+  static: StaticData | null;
+  reviews: Review[];
+};
+
+async function getProperty(id: string): Promise<PropertyPageData | null> {
+  const res = await fetch(`${API_BASE}/properties/${id}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to load property");
+  return res.json();
+}
+
+function avgFields(reviews: Review[]) {
+  if (reviews.length === 0) {
+    return { landlord: 0, safety: 0, transit: 0, amenities: 0, noise: 0, overall: 0 };
+  }
   const sum = reviews.reduce(
     (a, r) => ({
       landlord: a.landlord + r.rating_landlord,
-      value: a.value + r.rating_value,
-      neighborhood: a.neighborhood + r.rating_neighborhood,
-      maintenance: a.maintenance + r.rating_maintenance,
+      safety: a.safety + r.rating_safety,
+      transit: a.transit + r.rating_transit,
+      amenities: a.amenities + r.rating_amenities,
+      noise: a.noise + r.rating_noise,
+      overall: a.overall + r.rating_overall,
     }),
-    { landlord: 0, value: 0, neighborhood: 0, maintenance: 0 }
+    { landlord: 0, safety: 0, transit: 0, amenities: 0, noise: 0, overall: 0 }
   );
   const n = reviews.length;
-  const out = {
+  return {
     landlord: sum.landlord / n,
-    value: sum.value / n,
-    neighborhood: sum.neighborhood / n,
-    maintenance: sum.maintenance / n,
+    safety: sum.safety / n,
+    transit: sum.transit / n,
+    amenities: sum.amenities / n,
+    noise: sum.noise / n,
+    overall: sum.overall / n,
   };
-  return { ...out, overall: (out.landlord + out.value + out.neighborhood + out.maintenance) / 4 };
 }
 
-export default function PropertyPage() {
-  const property = PLACEHOLDER_PROPERTY;
-  const reviews = PLACEHOLDER_REVIEWS;
-  const stats = avg(reviews);
+export default async function PropertyPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const data = await getProperty(id);
+  if (!data) notFound();
+
+  const { address, reviews } = data;
+  const stats = avgFields(reviews);
+  const addressLine = [address.unit_number ? `Unit ${address.unit_number}` : null, address.street_address]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
@@ -71,68 +111,135 @@ export default function PropertyPage() {
 
       <section className="py-16 sm:py-24 px-6 sm:px-12">
         <div className="max-w-6xl mx-auto">
+          <Link href="/" className="text-xs font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-600">
+            ← Back to search
+          </Link>
+
+          <div className="mt-6 mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-serif font-medium text-neutral-900 leading-tight tracking-tight mb-3">
+                {addressLine}
+              </h1>
+              <p className="text-sm text-neutral-500 flex items-center gap-1.5">
+                <MapPin className="size-3.5" />
+                {address.city}, {address.province} {address.postal_code}
+              </p>
+            </div>
+            <WriteReviewButton variant="header" />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+            <div className="lg:col-span-6 space-y-12">
+              <div className="w-full aspect-[4/3] overflow-hidden rounded-2xl outline-1 -outline-offset-1 outline-black/5 bg-neutral-100" />
 
-            {/* Left column */}
-            <div className="lg:col-span-7">
-              <Link href="/" className="text-xs font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-600">
-                ← Back
-              </Link>
-
-              <div className="mt-6 mb-10">
-                <h1 className="text-4xl font-serif font-medium text-neutral-900 leading-tight tracking-tight mb-3">
-                  {property.address}
-                </h1>
-                <p className="text-sm text-neutral-500">
-                  {property.city}{property.region ? `, ${property.region}` : ""}
-                  {property.postal_code ? ` ${property.postal_code}` : ""}
-                  {property.property_type ? ` • ${property.property_type}` : ""}
-                </p>
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
+                  About this property
+                </h2>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                  <DetailRow icon={Hash} label="Postal code" value={address.postal_code} />
+                  <DetailRow icon={MapPin} label="Province" value={address.province} />
+                  <DetailRow
+                    icon={Calendar}
+                    label="Listed on PadCheck"
+                    value={new Date(address.created_at).toLocaleDateString(undefined, {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  />
+                  <DetailRow
+                    icon={Star}
+                    label="Reviews"
+                    value={`${reviews.length} ${reviews.length === 1 ? "review" : "reviews"}`}
+                  />
+                </dl>
               </div>
 
-              {/* Image placeholder */}
-              <div className="w-full aspect-video overflow-hidden rounded-2xl outline-1 -outline-offset-1 outline-black/5 mb-12 bg-neutral-100" />
-
-              {/* Rating bars */}
-              <div className="grid grid-cols-2 gap-x-12 gap-y-8 py-8 border-y border-neutral-200/60">
-                <RatingBar label="Landlord Responsiveness" value={stats.landlord} />
-                <RatingBar label="Value for Money" value={stats.value} />
-                <RatingBar label="Neighborhood Safety" value={stats.neighborhood} />
-                <RatingBar label="Maintenance Speed" value={stats.maintenance} />
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
+                  Renter ratings
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-8">
+                  <RatingBar label="Landlord Responsiveness" value={stats.landlord} />
+                  <RatingBar label="Neighborhood Safety" value={stats.safety} />
+                  <RatingBar label="Transit Access" value={stats.transit} />
+                  <RatingBar label="Amenities" value={stats.amenities} />
+                  <RatingBar label="Noise Level" value={stats.noise} />
+                </div>
               </div>
 
-              {/* Reviews */}
-              <div className="mt-12 space-y-10">
-                {reviews.length === 0 && (
-                  <p className="text-sm text-neutral-500">No reviews yet. Be the first to share your experience.</p>
-                )}
-                {reviews.map((r) => {
-                  const overall = (r.rating_landlord + r.rating_value + r.rating_neighborhood + r.rating_maintenance) / 4;
-                  return (
-                    <article key={r.id} className="space-y-4">
+              <LocationCard address={address} />
+              <NeighbourhoodCard stat={data.static} />
+            </div>
+
+            <aside className="lg:col-span-6 space-y-8">
+              <div className="p-6 bg-white ring-1 ring-black/5 rounded-2xl flex items-center gap-6">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-serif font-medium text-neutral-900">
+                      {stats.overall > 0 ? stats.overall.toFixed(1) : "—"}
+                    </span>
+                    <span className="text-sm text-neutral-500">/ 5</span>
+                  </div>
+                  <Stars value={stats.overall} />
+                  <p className="mt-2 text-xs text-neutral-500">
+                    {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                  </p>
+                </div>
+                <div className="h-16 w-px bg-neutral-200/60" />
+                <WriteReviewButton variant="card" />
+              </div>
+
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
+                  Reviews from renters
+                </h2>
+                <div className="space-y-8">
+                  {reviews.length === 0 && (
+                    <p className="text-sm text-neutral-500">No reviews yet. Be the first to share your experience.</p>
+                  )}
+                  {reviews.map((r) => (
+                    <article key={r.id} className="space-y-3 pb-8 border-b border-neutral-200/60 last:border-0 last:pb-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Stars value={overall} />
+                        <Stars value={r.rating_overall} />
                         <span className="text-xs font-medium text-neutral-400">
                           {new Date(r.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-                          {r.display_name ? ` • ${r.display_name}` : ""}
+                          {" • Verified renter"}
                         </span>
                       </div>
-                      <h4 className="text-lg font-medium text-neutral-900">{r.title}</h4>
-                      <p className="text-sm text-neutral-600 leading-relaxed text-pretty max-w-[60ch]">{r.body}</p>
+                      {r.review_text && (
+                        <p className="text-sm text-neutral-600 leading-relaxed text-pretty">{r.review_text}</p>
+                      )}
                     </article>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-
-            {/* Right column — review form */}
-            <div className="lg:col-span-5">
-              <ReviewForm />
-            </div>
-
+            </aside>
           </div>
         </div>
       </section>
+
+      <Footer />
+    </div>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="size-4 text-neutral-400 mt-0.5 shrink-0" />
+      <div>
+        <dt className="text-xs font-medium uppercase tracking-wider text-neutral-400">{label}</dt>
+        <dd className="text-sm text-neutral-900 mt-0.5">{value}</dd>
+      </div>
     </div>
   );
 }
@@ -165,78 +272,130 @@ function Stars({ value }: { value: number }) {
   );
 }
 
-function RatingPicker({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+function fmtDist(m: number | null | undefined) {
+  if (m == null) return "—";
+  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+function LocationCard({ address }: { address: Address }) {
+  const line2 = `${address.city}, ${address.province} ${address.postal_code}`;
+  const hasCoords = address.lat != null && address.lng != null;
+  const mapsUrl = `https://www.google.com/maps?q=${address.lat},${address.lng}`;
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">{label}</label>
-        <span className="text-xs text-neutral-500">{value || "—"}/5</span>
-      </div>
-      <div className="flex gap-2">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(n)}
-            className={`size-10 rounded-lg ring-1 grid place-items-center text-sm transition-colors ${
-              n <= value ? "bg-[#2d332d] text-white ring-[#2d332d]" : "ring-neutral-200 hover:bg-neutral-50"
-            }`}
+    <div>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">Location</h2>
+      <div className="p-6 bg-white ring-1 ring-black/5 rounded-2xl space-y-5">
+        <div className="flex items-start gap-3">
+          <MapPin className="size-4 text-neutral-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-neutral-900">
+              {address.unit_number ? `Unit ${address.unit_number}, ` : ""}
+              {address.street_address}
+            </p>
+            <p className="text-sm text-neutral-500">{line2}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-1">
+          <DetailRow icon={Building2} label="Neighbourhood" value={address.neighbourhood ?? "—"} />
+          <DetailRow icon={Hash} label="Ward" value={address.ward ?? "—"} />
+          <DetailRow icon={MapPin} label="Latitude" value={address.lat != null ? String(address.lat) : "—"} />
+          <DetailRow icon={MapPin} label="Longitude" value={address.lng != null ? String(address.lng) : "—"} />
+        </div>
+        {hasCoords && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex text-xs font-medium uppercase tracking-wider text-neutral-500 hover:text-neutral-900"
           >
-            {n}
-          </button>
-        ))}
+            Open in Google Maps →
+          </a>
+        )}
       </div>
     </div>
   );
 }
 
-function ReviewForm() {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [r1, setR1] = useState(0);
-  const [r2, setR2] = useState(0);
-  const [r3, setR3] = useState(0);
-  const [r4, setR4] = useState(0);
+function ScorePill({ label, value }: { label: string; value: number | null | undefined }) {
+  const v = value ?? 0;
+  const tone =
+    v >= 80 ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+    : v >= 60 ? "bg-amber-50 text-amber-700 ring-amber-200"
+    : "bg-neutral-100 text-neutral-600 ring-neutral-200";
+  return (
+    <div className="p-4 rounded-xl ring-1 ring-black/5 bg-white">
+      <p className="text-xs font-medium uppercase tracking-wider text-neutral-400">{label}</p>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-3xl font-serif font-medium text-neutral-900">{value ?? "—"}</span>
+        <span className="text-xs text-neutral-400">/ 100</span>
+      </div>
+      <span className={`mt-2 inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ring-1 ${tone}`}>
+        {v >= 80 ? "Very walkable" : v >= 60 ? "Good" : "Limited"}
+      </span>
+    </div>
+  );
+}
+
+function AmenityRow({
+  icon: Icon,
+  label,
+  distance_m,
+  name,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  distance_m: number | null | undefined;
+  name?: string | null;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-neutral-200/60 last:border-0">
+      <div className="flex items-start gap-3 min-w-0">
+        <Icon className="size-4 text-neutral-400 mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm text-neutral-900">{label}</p>
+          {name && <p className="text-xs text-neutral-500 truncate">{name}</p>}
+        </div>
+      </div>
+      <span className="text-sm font-medium text-neutral-700 tabular-nums shrink-0">{fmtDist(distance_m)}</span>
+    </div>
+  );
+}
+
+function NeighbourhoodCard({ stat }: { stat: StaticData | null }) {
+  if (!stat) {
+    return (
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
+          Neighbourhood & amenities
+        </h2>
+        <p className="text-sm text-neutral-500">Neighbourhood data isn&apos;t available for this property yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="sticky top-12 p-8 bg-white ring-1 ring-black/5 rounded-2xl">
-      <h3 className="text-xl font-serif font-medium text-neutral-900 mb-2">Have you lived here?</h3>
-      <p className="text-sm text-neutral-500 mb-8">Your honest feedback helps the next renter make a better decision.</p>
-
-      <form className="space-y-6">
-        <RatingPicker label="Landlord" value={r1} onChange={setR1} />
-        <RatingPicker label="Value" value={r2} onChange={setR2} />
-        <RatingPicker label="Neighborhood" value={r3} onChange={setR3} />
-        <RatingPicker label="Maintenance" value={r4} onChange={setR4} />
-
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Headline</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Sum up your experience"
-            className="w-full p-3 text-sm bg-neutral-50 ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300 placeholder-neutral-400"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Your experience</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={5}
-            placeholder="What should a future tenant know?"
-            className="w-full p-4 text-sm bg-neutral-50 ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300 placeholder-neutral-400"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full py-3 px-4 rounded-xl bg-[#2d332d] text-white font-medium text-sm transition-opacity hover:opacity-90"
-        >
-          Post review
-        </button>
-      </form>
+    <div>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
+        Neighbourhood & amenities
+      </h2>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <ScorePill label="Walk Score" value={stat.walk_score} />
+        <ScorePill label="Transit Score" value={stat.transit_score} />
+      </div>
+      <div className="p-6 bg-white ring-1 ring-black/5 rounded-2xl">
+        <AmenityRow icon={Train} label="Nearest subway" distance_m={stat.nearest_subway_m} name={stat.nearest_subway_name} />
+        <AmenityRow icon={Bus} label="Nearest bus stop" distance_m={stat.nearest_bus_stop_m} />
+        <AmenityRow icon={ShoppingCart} label="Supermarket" distance_m={stat.nearest_supermarket_m} />
+        <AmenityRow icon={Pill} label="Pharmacy" distance_m={stat.nearest_pharmacy_m} />
+        <AmenityRow icon={Hospital} label="Hospital" distance_m={stat.nearest_hospital_m} />
+        <AmenityRow icon={Stethoscope} label="Clinic" distance_m={stat.nearest_clinic_m} />
+        <AmenityRow icon={GraduationCap} label="School" distance_m={stat.nearest_school_m} name={stat.nearest_school_name} />
+        <AmenityRow icon={Trees} label="Park" distance_m={stat.nearest_park_m} />
+      </div>
+      <p className="mt-3 text-xs text-neutral-400">
+        <Footprints className="size-3 inline -mt-0.5 mr-1" />
+        Walking distances are approximate.
+      </p>
     </div>
   );
 }
