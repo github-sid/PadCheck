@@ -7,8 +7,103 @@ import {
 import { Navbar } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { WriteReviewButton } from "@/components/write-review-button";
+import { PropertyImage } from "@/components/property-image";
+import { ReviewCard, Stars, type ReviewCardData } from "@/components/review-card";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+const staticReviews = [
+  {
+    id: "demo-1",
+    title: "Quiet and well-maintained building",
+    review:
+      "Lived here for about a year. The building was generally clean, management responded quickly to maintenance requests, and noise levels were low.",
+    rating_overall: 5,
+    created_at: "2026-01-15",
+    user_name: "Alex M.",
+  },
+  {
+    id: "demo-2",
+    title: "Great transit access",
+    review:
+      "Very convenient location with bus and subway options nearby. Commute to downtown was straightforward and reliable.",
+    rating_overall: 4,
+    created_at: "2026-02-03",
+    user_name: "Sarah K.",
+  },
+  {
+    id: "demo-3",
+    title: "Good value for the area",
+    review:
+      "Rent was competitive compared to nearby buildings. Amenities were basic but everything worked as expected.",
+    rating_overall: 4,
+    created_at: "2026-02-20",
+    user_name: "Daniel R.",
+  },
+  {
+    id: "demo-4",
+    title: "Friendly neighbours",
+    review:
+      "Most residents were respectful and friendly. Common areas stayed relatively clean throughout the year.",
+    rating_overall: 5,
+    created_at: "2026-03-05",
+    user_name: "Emma T.",
+  },
+  {
+    id: "demo-5",
+    title: "Occasional maintenance delays",
+    review:
+      "Overall experience was positive, though a few maintenance requests took longer than expected during busy periods.",
+    rating_overall: 3,
+    created_at: "2026-03-18",
+    user_name: "Michael L.",
+  },
+  {
+    id: "demo-6",
+    title: "Safe neighbourhood",
+    review:
+      "Felt comfortable walking around during the evening. Nearby stores and services made daily errands easy.",
+    rating_overall: 5,
+    created_at: "2026-04-02",
+    user_name: "Jessica P.",
+  },
+  {
+    id: "demo-7",
+    title: "Parking was convenient",
+    review:
+      "Having dedicated parking was a major benefit. Visitor parking availability varied depending on the time of day.",
+    rating_overall: 4,
+    created_at: "2026-04-15",
+    user_name: "Ryan C.",
+  },
+  {
+    id: "demo-8",
+    title: "Decent amenities",
+    review:
+      "Gym and laundry facilities were well maintained. Would have liked more shared community spaces.",
+    rating_overall: 4,
+    created_at: "2026-05-01",
+    user_name: "Olivia S.",
+  },
+  {
+    id: "demo-9",
+    title: "Responsive property management",
+    review:
+      "Management communicated clearly regarding building updates and maintenance schedules.",
+    rating_overall: 5,
+    created_at: "2026-05-14",
+    user_name: "Nathan B.",
+  },
+  {
+    id: "demo-10",
+    title: "Solid rental experience",
+    review:
+      "No major issues during my tenancy. The property was accurately represented and move-in was smooth.",
+    rating_overall: 4,
+    created_at: "2026-05-28",
+    user_name: "Sophia W.",
+  },
+];
 
 type Address = {
   id: string;
@@ -105,11 +200,15 @@ export default async function PropertyPage({
     .filter(Boolean)
     .join(", ");
 
+  const displayReviews: ReviewCardData[] = reviews.length > 0
+    ? reviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review_text, created_at: r.created_at }))
+    : staticReviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review, created_at: r.created_at, title: r.title, user_name: r.user_name }));
+
   return (
     <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
       <Navbar />
 
-      <section className="py-16 sm:py-24 px-6 sm:px-12">
+      <section className="py-16 sm:py-12 px-6 sm:px-12">
         <div className="max-w-6xl mx-auto">
           <Link href="/" className="text-xs font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-600">
             ← Back to search
@@ -130,8 +229,8 @@ export default async function PropertyPage({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
             <div className="lg:col-span-6 space-y-12">
-              <div className="w-full aspect-[4/3] overflow-hidden rounded-2xl outline-1 -outline-offset-1 outline-black/5 bg-neutral-100" />
 
+              <PropertyImage />
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   About this property
@@ -195,22 +294,8 @@ export default async function PropertyPage({
                   Reviews from renters
                 </h2>
                 <div className="space-y-8">
-                  {reviews.length === 0 && (
-                    <p className="text-sm text-neutral-500">No reviews yet. Be the first to share your experience.</p>
-                  )}
-                  {reviews.map((r) => (
-                    <article key={r.id} className="space-y-3 pb-8 border-b border-neutral-200/60 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Stars value={r.rating_overall} />
-                        <span className="text-xs font-medium text-neutral-400">
-                          {new Date(r.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-                          {" • Verified renter"}
-                        </span>
-                      </div>
-                      {r.review_text && (
-                        <p className="text-sm text-neutral-600 leading-relaxed text-pretty">{r.review_text}</p>
-                      )}
-                    </article>
+                  {displayReviews.map((r) => (
+                    <ReviewCard key={r.id} review={r} />
                   ))}
                 </div>
               </div>
@@ -255,19 +340,6 @@ function RatingBar({ label, value }: { label: string; value: number }) {
       <div className="h-1.5 w-full bg-neutral-200 rounded-full overflow-hidden">
         <div className="h-full bg-neutral-800" style={{ width: `${pct}%` }} />
       </div>
-    </div>
-  );
-}
-
-function Stars({ value }: { value: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          className={`size-4 ${i <= Math.round(value) ? "text-orange-500 fill-orange-500" : "text-neutral-200 fill-neutral-200"}`}
-        />
-      ))}
     </div>
   );
 }
@@ -320,8 +392,8 @@ function ScorePill({ label, value }: { label: string; value: number | null | und
   const v = value ?? 0;
   const tone =
     v >= 80 ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : v >= 60 ? "bg-amber-50 text-amber-700 ring-amber-200"
-    : "bg-neutral-100 text-neutral-600 ring-neutral-200";
+      : v >= 60 ? "bg-amber-50 text-amber-700 ring-amber-200"
+        : "bg-neutral-100 text-neutral-600 ring-neutral-200";
   return (
     <div className="p-4 rounded-xl ring-1 ring-black/5 bg-white">
       <p className="text-xs font-medium uppercase tracking-wider text-neutral-400">{label}</p>
