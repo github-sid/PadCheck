@@ -230,7 +230,7 @@ export default async function PropertyPage({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
             <div className="lg:col-span-6 space-y-12">
 
-              <PropertyImage />
+              <PropertyImage lat={address.lat} lng={address.lng} address={addressLine} />
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   About this property
