@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Search } from "lucide-react";
 
-const GEOAPIFY_KEY = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-const AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
+setOptions({
+  key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+  v: "weekly",
+});
+
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 300;
 
@@ -21,17 +25,21 @@ type Props = {
   onQueryChange?: (query: string) => void;
 };
 
+async function getPlacesLib(): Promise<google.maps.PlacesLibrary> {
+  return importLibrary("places");
+}
+
 export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const justSelectedRef = useRef(false);
 
-  // Clearing happens in onChange — not inside an effect — to avoid cascading renders
   function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;
     setQuery(val);
@@ -44,42 +52,47 @@ export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
 
   useEffect(() => {
     if (query.length < MIN_CHARS) return;
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      abortRef.current?.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-
       setLoading(true);
       try {
-        const params = new URLSearchParams({
-          text: query,
-          apiKey: GEOAPIFY_KEY ?? "",
-          limit: "6",
-          format: "json",
+        const { AutocompleteService, AutocompleteSessionToken } = await getPlacesLib();
+
+        if (!sessionTokenRef.current) {
+          sessionTokenRef.current = new AutocompleteSessionToken();
+        }
+
+        const service = new AutocompleteService();
+        const { predictions } = await service.getPlacePredictions({
+          input: query,
+          sessionToken: sessionTokenRef.current,
+          componentRestrictions: { country: "ca" },
+          types: ["address"],
         });
-        const res = await fetch(`${AUTOCOMPLETE_URL}?${params}`, { signal: ctrl.signal });
-        if (!res.ok) throw new Error("autocomplete failed");
-        const data = await res.json();
-        const results: Suggestion[] = (data.results ?? []).map((r: Record<string, string>) => ({
-          place_id: r.place_id ?? r.formatted,
-          formatted: r.formatted ?? "",
-          address_line1: r.address_line1 ?? r.formatted ?? "",
-          address_line2: r.address_line2 ?? "",
+
+        const results: Suggestion[] = (predictions ?? []).map((p) => ({
+          place_id: p.place_id,
+          formatted: p.description,
+          address_line1: p.structured_formatting.main_text,
+          address_line2: p.structured_formatting.secondary_text ?? "",
         }));
+
         setSuggestions(results);
         setOpen(results.length > 0);
         setActiveIndex(-1);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") setSuggestions([]);
+      } catch {
+        setSuggestions([]);
       } finally {
         setLoading(false);
       }
     }, DEBOUNCE_MS);
   }, [query]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -91,10 +104,12 @@ export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
   }, []);
 
   function selectSuggestion(s: Suggestion) {
+    justSelectedRef.current = true;
     setQuery(s.address_line1);
     setSuggestions([]);
     setOpen(false);
     setActiveIndex(-1);
+    sessionTokenRef.current = null;
     onSelect?.(s);
   }
 
@@ -121,7 +136,6 @@ export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
   }
 
   return (
-    // role="combobox" owns the aria-expanded state; input stays as role="textbox"
     <div
       ref={containerRef}
       role="combobox"
@@ -138,7 +152,7 @@ export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         type="text"
         autoComplete="off"
-        placeholder="Enter an address, zip, or city..."
+        placeholder="Enter an address"
         aria-autocomplete="list"
         className="w-full bg-transparent border-none text-neutral-900 placeholder-neutral-400 focus:outline-none text-sm h-10"
       />

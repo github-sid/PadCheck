@@ -1,27 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useIsSignedIn } from "@/lib/use-auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export function Navbar() {
   const router = useRouter();
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/auth/me`, { credentials: "include" })
-      .then((res) => setLoggedIn(res.ok))
-      .catch(() => setLoggedIn(false));
-  }, []);
+  const loggedIn = useIsSignedIn();
 
   const handleSignOut = async () => {
     await fetch(`${API_BASE}/auth/logout`, {
       method: "POST",
       credentials: "include",
     });
-    setLoggedIn(false);
     router.push("/");
   };
 

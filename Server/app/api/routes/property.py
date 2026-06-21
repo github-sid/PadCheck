@@ -30,7 +30,6 @@ def lookup(body: LookupRequest) -> AddressResponse:
     Returns the existing DB record or fetches from Geoapify and creates it.
     Respond with the address id so the frontend can navigate to /property/{id}.
     """
-
     return property_service.find_or_create_from_place_id(body.place_id)
 
 

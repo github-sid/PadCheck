@@ -1,11 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PencilLine, X } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 import { ReviewForm } from "./review-form";
+import { useIsSignedIn } from "@/lib/use-auth";
 
-export function WriteReviewButton({ variant = "header" }: { variant?: "header" | "card" }) {
-  const [open, setOpen] = useState(false);
+export function WriteReviewButton({
+  variant = "header",
+  propertyId,
+  defaultOpen = false,
+}: {
+  variant?: "header" | "card";
+  propertyId?: string;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isSignedIn = useIsSignedIn();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (defaultOpen) {
+      router.replace(pathname);
+    }
+    // one-shot: strip the ?openReview=1 param from URL on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
@@ -13,8 +34,8 @@ export function WriteReviewButton({ variant = "header" }: { variant?: "header" |
         onClick={() => setOpen(true)}
         className={
           variant === "card"
-            ? "flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#2d332d] text-white font-medium text-sm hover:opacity-90 transition-opacity"
-            : "inline-flex items-center gap-2 py-3 px-5 rounded-xl bg-[#2d332d] text-white font-medium text-sm hover:opacity-90 transition-opacity shrink-0"
+            ? "flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-primary text-white font-medium text-sm hover:opacity-90 transition-opacity"
+            : "inline-flex items-center gap-2 py-3 px-5 rounded-xl bg-brand-primary text-white font-medium text-sm hover:opacity-90 transition-opacity shrink-0"
         }
       >
         <PencilLine className="size-4" />
@@ -23,11 +44,11 @@ export function WriteReviewButton({ variant = "header" }: { variant?: "header" |
 
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative w-full max-w-lg my-8 bg-[#fcfcfb] rounded-2xl ring-1 ring-black/5"
+            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col bg-brand-surface rounded-2xl ring-1 ring-black/5 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -37,7 +58,7 @@ export function WriteReviewButton({ variant = "header" }: { variant?: "header" |
             >
               <X className="size-4" />
             </button>
-            <ReviewForm />
+            <ReviewForm disabled={!isSignedIn} propertyId={propertyId} />
           </div>
         </div>
       )}

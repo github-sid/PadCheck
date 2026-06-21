@@ -1,19 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/header";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export const Auth = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl");
+
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  function getRedirectUrl() {
+    return returnUrl && returnUrl.startsWith("/") ? returnUrl : "/";
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,7 +54,7 @@ export const Auth = () => {
         const data = await res.json();
         throw new Error(data.detail ?? "Sign in failed");
       }
-      router.push("/");
+      router.push(getRedirectUrl());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -56,7 +63,8 @@ export const Auth = () => {
   };
 
   function handleGoogleSignIn() {
-    window.location.href = `${API_BASE}/auth/google`;
+    const redirect = getRedirectUrl();
+    window.location.href = `${API_BASE}/auth/google?return_url=${encodeURIComponent(redirect)}`;
   }
 
   const toggleMode = () => {
@@ -67,7 +75,7 @@ export const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
+    <div className="min-h-screen bg-brand-surface text-neutral-800 font-sans">
       <Navbar />
       <div className="max-w-md mx-auto px-6 py-20">
         <h1 className="text-3xl font-serif font-medium text-neutral-900 mb-2">
@@ -126,7 +134,7 @@ export const Auth = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-[#2d332d] text-white font-medium text-sm disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-brand-primary text-white font-medium text-sm disabled:opacity-50"
           >
             {loading
               ? mode === "signin"
@@ -146,6 +154,6 @@ export const Auth = () => {
           {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
         </button>
       </div>
-    </div >
+    </div>
   );
 };

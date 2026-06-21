@@ -2,7 +2,8 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 
-from app.core.geoapify import fetch_address_by_place_id, fetch_address_static_data
+from app.core.address_normalize import build_canonical_key
+from app.core.geoapify import fetch_address, fetch_address_static_data
 from app.repositories import (
     address_community_data_repository,
     address_repository,
@@ -38,18 +39,25 @@ def get_property_page_data(address_id: UUID) -> dict:
     }
 
 
-def find_or_create_from_place_id(place_id: str) -> AddressResponse:
+def find_or_create_from_place_id(address: str) -> AddressResponse:
     """
     Main entry point for the search flow.
-    1. Check DB by place_id — return immediately if found.
-    2. Fetch full details from Geoapify.
+    1. Fetch structured address data from Geoapify.
+    2. Compute canonical key and check DB — return immediately if found.
     3. Persist and return the new record.
     """
-    existing = address_repository.get_address_by_place_id(place_id)
+    
+      
+
+
+
+    address_data: AddressCreate = fetch_address(address)
+    key = build_canonical_key(address_data.street_address, address_data.unit_number, address_data.postal_code)
+
+    existing = address_repository.get_address_by_canonical_key(key)
     if existing:
         return AddressResponse.model_validate(existing.__dict__)
 
-    address_data: AddressCreate = fetch_address_by_place_id(place_id)
     address = address_repository.create_address(address_data)
 
     try:

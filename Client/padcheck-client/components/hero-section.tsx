@@ -56,7 +56,8 @@ export function HeroSection() {
             <SearchBox
               onSelect={(s) => {
                 setQuery(s.address_line1);
-                setPlaceId(s.place_id);
+                // setPlaceId(s.place_id);
+                setPlaceId(s.address_line1)
                 setError(null);
               }}
               onQueryChange={(q) => {

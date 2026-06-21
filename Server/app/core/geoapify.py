@@ -11,13 +11,14 @@ from app.schemas.address import AddressCreate
 from app.schemas.address_static_data import AddressStaticDataCreate
 
 _PLACE_DETAILS_URL = "https://api.geoapify.com/v2/place-details"
-_PLACES_URL = "https://api.geoapify.com/v2/places"
+_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete"
 
 
-def fetch_address_by_place_id(place_id: str) -> AddressCreate:
+def fetch_address(text: str) -> AddressCreate:
     """
-    Call Geoapify Place Details API and map the response to AddressCreate.
-    Raises 502 if Geoapify is unreachable, 404 if the place_id returns no result.
+    1. Call autocomplete with `text` to collect all candidate place_ids.
+    2. Try each place_id against the place details API.
+    3. Return an AddressCreate from the first successful result.
     """
     if not settings.geoapify_api_key:
         raise HTTPException(
@@ -26,16 +27,21 @@ def fetch_address_by_place_id(place_id: str) -> AddressCreate:
         )
 
     try:
-        resp = httpx.get(
-            _PLACE_DETAILS_URL,
-            params={"id": place_id, "apiKey": settings.geoapify_api_key},
+        ac_resp = httpx.get(
+            _AUTOCOMPLETE_URL,
+            params={
+                "text": text,
+                "apiKey": settings.geoapify_api_key,
+                "limit": "5",
+                "filter": "countrycode:ca",
+            },
             timeout=8.0,
         )
-        resp.raise_for_status()
+        ac_resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Geoapify error: {exc.response.status_code}",
+            detail=f"Geoapify autocomplete error: {exc.response.status_code}",
         )
     except httpx.RequestError:
         raise HTTPException(
@@ -43,34 +49,60 @@ def fetch_address_by_place_id(place_id: str) -> AddressCreate:
             detail="Could not reach Geoapify",
         )
 
-    data = resp.json()
-    features = data.get("features") or []
-    if not features:
+    place_ids = [
+        f["properties"]["place_id"]
+        for f in ac_resp.json().get("features", [])
+        if f.get("properties", {}).get("place_id")
+    ]
+
+    if not place_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No Geoapify result for place_id: {place_id}",
+            detail="No autocomplete results found",
         )
 
-    props = features[0].get("properties", {})
-    coords = features[0].get("geometry", {}).get("coordinates", [])
+    for pid in place_ids:
+        try:
+            detail_resp = httpx.get(
+                _PLACE_DETAILS_URL,
+                params={"id": pid, "apiKey": settings.geoapify_api_key},
+                timeout=8.0,
+            )
+            detail_resp.raise_for_status()
+            features = detail_resp.json().get("features") or []
+            if not features:
+                continue
+        except (httpx.HTTPStatusError, httpx.RequestError):
+            continue
 
-    house = props.get("housenumber", "")
-    street = props.get("street", "")
-    street_address = f"{house} {street}".strip() if house else street
+        props = features[0].get("properties", {})
+        coords = features[0].get("geometry", {}).get("coordinates", [])
 
-    lng = Decimal(str(coords[0])) if len(coords) >= 2 else None
-    lat = Decimal(str(coords[1])) if len(coords) >= 2 else None
+        house = props.get("housenumber", "")
+        street = props.get("street", "")
+        street_address = f"{house} {street}".strip() if house else street
 
-    return AddressCreate(
-        street_address=street_address or props.get("formatted", ""),
-        city=props.get("city") or props.get("town") or props.get("village") or "",
-        province=props.get("state_code") or props.get("state") or "",
-        postal_code=props.get("postcode") or "",
-        lat=lat,
-        lng=lng,
-        google_place_id=place_id,
-        neighbourhood=props.get("suburb") or props.get("neighbourhood") or props.get("quarter"),
-        ward=props.get("district") or props.get("county"),
+        try:
+            lng = Decimal(str(coords[0])) if len(coords) >= 2 else None
+            lat = Decimal(str(coords[1])) if len(coords) >= 2 else None
+        except Exception:
+            lng, lat = None, None
+
+        return AddressCreate(
+            street_address=street_address or props.get("formatted", ""),
+            city=props.get("city") or props.get("town") or props.get("village") or "",
+            province=props.get("state_code") or props.get("state") or "",
+            postal_code=props.get("postcode") or "",
+            lat=lat,
+            lng=lng,
+            google_place_id=pid,
+            neighbourhood=props.get("suburb") or props.get("neighbourhood") or props.get("quarter"),
+            ward=props.get("district") or props.get("county"),
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No place details found for any autocomplete result",
     )
 
 
@@ -85,7 +117,7 @@ def fetch_address_static_data(address_id: UUID, lat: float, lng: float) -> Addre
     def _nearest(category: str, radius_m: int) -> tuple[int | None, str | None]:
         try:
             resp = httpx.get(
-                _PLACES_URL,
+                _PLACE_DETAILS_URL,
                 params={
                     "categories": category,
                     "filter": f"circle:{lng},{lat},{radius_m}",
@@ -176,4 +208,5 @@ def fetch_address_static_data(address_id: UUID, lat: float, lng: float) -> Addre
         nearest_school_name=school_name,
         nearest_park_m=park_m,
     )
+
 

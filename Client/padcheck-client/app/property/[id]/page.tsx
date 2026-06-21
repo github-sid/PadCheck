@@ -187,10 +187,13 @@ function avgFields(reviews: Review[]) {
 
 export default async function PropertyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ openReview?: string }>;
 }) {
   const { id } = await params;
+  const { openReview } = await searchParams;
   const data = await getProperty(id);
   if (!data) notFound();
 
@@ -205,7 +208,7 @@ export default async function PropertyPage({
     : staticReviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review, created_at: r.created_at, title: r.title, user_name: r.user_name }));
 
   return (
-    <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
+    <div className="min-h-screen bg-brand-surface text-neutral-800 font-sans">
       <Navbar />
 
       <section className="py-16 sm:py-12 px-6 sm:px-12">
@@ -224,7 +227,7 @@ export default async function PropertyPage({
                 {address.city}, {address.province} {address.postal_code}
               </p>
             </div>
-            <WriteReviewButton variant="header" />
+            {/* <WriteReviewButton variant="header" /> */}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
@@ -286,7 +289,7 @@ export default async function PropertyPage({
                   </p>
                 </div>
                 <div className="h-16 w-px bg-neutral-200/60" />
-                <WriteReviewButton variant="card" />
+                <WriteReviewButton variant="card" propertyId={id} defaultOpen={openReview === "1"} />
               </div>
 
               <div>
