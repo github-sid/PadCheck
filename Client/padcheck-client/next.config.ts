@@ -5,8 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "maps.googleapis.com",
-        pathname: "/maps/api/streetview**",
+        hostname: "**.amazonaws.com",
       },
     ],
   },

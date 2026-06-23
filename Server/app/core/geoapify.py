@@ -1,158 +1,149 @@
-import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from decimal import Decimal
 from uuid import UUID
 
-import httpx
+import httpx 
 from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.schemas.address import AddressCreate
 from app.schemas.address_static_data import AddressStaticDataCreate
 
-_PLACE_DETAILS_URL = "https://api.geoapify.com/v2/place-details"
-_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete"
+_GOOGLE_PLACE_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+_GOOGLE_NEARBY_SEARCH_URL = "https://places.googleapis.com/v1/places:searchNearby"
 
 
-def fetch_address(text: str) -> AddressCreate:
-    """
-    1. Call autocomplete with `text` to collect all candidate place_ids.
-    2. Try each place_id against the place details API.
-    3. Return an AddressCreate from the first successful result.
-    """
-    if not settings.geoapify_api_key:
+def _get_component(components: list, type_: str, name: str = "long_name") -> str:
+    for c in components:
+        if type_ in c.get("types", []):
+            return c.get(name, "")
+    return ""
+
+
+def fetch_address(place_id: str) -> AddressCreate:
+    if not settings.google_maps_api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Geoapify API key not configured",
+            detail="Google Maps API key not configured",
         )
 
     try:
-        ac_resp = httpx.get(
-            _AUTOCOMPLETE_URL,
+        resp = httpx.get(
+            _GOOGLE_PLACE_DETAILS_URL,
             params={
-                "text": text,
-                "apiKey": settings.geoapify_api_key,
-                "limit": "5",
-                "filter": "countrycode:ca",
+                "place_id": place_id,
+                "fields": "address_components,geometry,formatted_address",
+                "key": settings.google_maps_api_key,
             },
             timeout=8.0,
         )
-        ac_resp.raise_for_status()
+        resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Geoapify autocomplete error: {exc.response.status_code}",
+            detail=f"Google Places error: {exc.response.status_code}",
         )
     except httpx.RequestError:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not reach Geoapify",
+            detail="Could not reach Google Places API",
         )
 
-    place_ids = [
-        f["properties"]["place_id"]
-        for f in ac_resp.json().get("features", [])
-        if f.get("properties", {}).get("place_id")
-    ]
-
-    if not place_ids:
+    data = resp.json()
+    print(f"[fetch_address] place_id={place_id} status={data.get('status')} error={data.get('error_message')}")
+    if data.get("status") != "OK":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No autocomplete results found",
+            detail=f"No result for place_id: {place_id} — {data.get('status')}",
         )
 
-    for pid in place_ids:
-        try:
-            detail_resp = httpx.get(
-                _PLACE_DETAILS_URL,
-                params={"id": pid, "apiKey": settings.geoapify_api_key},
-                timeout=8.0,
-            )
-            detail_resp.raise_for_status()
-            features = detail_resp.json().get("features") or []
-            if not features:
-                continue
-        except (httpx.HTTPStatusError, httpx.RequestError):
-            continue
+    result = data["result"]
+    components = result.get("address_components", [])
+    location = result.get("geometry", {}).get("location", {})
 
-        props = features[0].get("properties", {})
-        coords = features[0].get("geometry", {}).get("coordinates", [])
+    street_number = _get_component(components, "street_number")
+    route = _get_component(components, "route")
+    street_address = f"{street_number} {route}".strip() if street_number else route
 
-        house = props.get("housenumber", "")
-        street = props.get("street", "")
-        street_address = f"{house} {street}".strip() if house else street
+    try:
+        lat = Decimal(str(location["lat"])) if "lat" in location else None
+        lng = Decimal(str(location["lng"])) if "lng" in location else None
+    except Exception:
+        lat, lng = None, None
 
-        try:
-            lng = Decimal(str(coords[0])) if len(coords) >= 2 else None
-            lat = Decimal(str(coords[1])) if len(coords) >= 2 else None
-        except Exception:
-            lng, lat = None, None
-
-        return AddressCreate(
-            street_address=street_address or props.get("formatted", ""),
-            city=props.get("city") or props.get("town") or props.get("village") or "",
-            province=props.get("state_code") or props.get("state") or "",
-            postal_code=props.get("postcode") or "",
-            lat=lat,
-            lng=lng,
-            google_place_id=pid,
-            neighbourhood=props.get("suburb") or props.get("neighbourhood") or props.get("quarter"),
-            ward=props.get("district") or props.get("county"),
-        )
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="No place details found for any autocomplete result",
+    return AddressCreate(
+        street_address=street_address or result.get("formatted_address", ""),
+        city=(
+            _get_component(components, "locality")
+            or _get_component(components, "administrative_area_level_3")
+        ),
+        province=_get_component(components, "administrative_area_level_1", "short_name"),
+        postal_code=_get_component(components, "postal_code"),
+        lat=lat,
+        lng=lng,
+        google_place_id=place_id,
+        neighbourhood=(
+            _get_component(components, "neighborhood")
+            or _get_component(components, "sublocality_level_1")
+        ),
+        ward=_get_component(components, "administrative_area_level_2"),
     )
 
 
 
 def fetch_address_static_data(address_id: UUID, lat: float, lng: float) -> AddressStaticDataCreate:
-    if not settings.geoapify_api_key:
+    if not settings.google_maps_api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Geoapify API key not configured",
+            detail="Google Maps API key not configured",
         )
 
-    def _nearest(category: str, radius_m: int) -> tuple[int | None, str | None]:
+    def _nearest(google_type: str) -> tuple[int | None, str | None]:
         try:
-            resp = httpx.get(
-                _PLACE_DETAILS_URL,
-                params={
-                    "categories": category,
-                    "filter": f"circle:{lng},{lat},{radius_m}",
-                    "bias": f"proximity:{lng},{lat}",
-                    "limit": 1,
-                    "apiKey": settings.geoapify_api_key,
+            resp = httpx.post(
+                _GOOGLE_NEARBY_SEARCH_URL,
+                headers={
+                    "X-Goog-Api-Key": settings.google_maps_api_key,
+                    "X-Goog-FieldMask": "places.displayName",
+                },
+                json={
+                    "includedTypes": [google_type],
+                    "locationRestriction": {
+                        "circle": {
+                            "center": {"latitude": lat, "longitude": lng},
+                            "radius": 1000.0,
+                        }
+                    },
+                    "rankPreference": "DISTANCE",
+                    "maxResultCount": 1,
                 },
                 timeout=8.0,
             )
             resp.raise_for_status()
         except (httpx.HTTPStatusError, httpx.RequestError):
             return None, None
-        features = resp.json().get("features") or []
-        if not features:
+        places = resp.json().get("places") or []
+        if not places:
             return None, None
-        props = features[0].get("properties", {})
-        dist = props.get("distance")
-        return (int(round(dist)) if dist is not None else None), props.get("name")
+        name = places[0].get("displayName", {}).get("text")
+        return 1000, name
 
-    queries: dict[str, tuple[str, int]] = {
-        "subway":      ("public_transport.train.underground", 2000),
-        "bus":         ("public_transport.bus",               1000),
-        "supermarket": ("commercial.supermarket",             2000),
-        "pharmacy":    ("healthcare.pharmacy",                2000),
-        "hospital":    ("healthcare.hospital",                5000),
-        "clinic":      ("healthcare.clinic_or_praxis",        2000),
-        "school":      ("education.school",                   2000),
-        "park":        ("leisure.park",                       2000),
+    queries: dict[str, str] = {
+        "subway":      "subway_station",
+        "bus":         "bus_station",
+        "supermarket": "supermarket",
+        "pharmacy":    "pharmacy",
+        "hospital":    "hospital",
+        "clinic":      "doctor",
+        "school":      "school",
+        "park":        "park",
     }
 
     results: dict[str, tuple[int | None, str | None]] = {}
     with ThreadPoolExecutor(max_workers=len(queries)) as executor:
         futures = {
-            executor.submit(_nearest, cat, radius): key
-            for key, (cat, radius) in queries.items()
+            executor.submit(_nearest, google_type): key
+            for key, google_type in queries.items()
         }
         for future in as_completed(futures):
             results[futures[future]] = future.result()

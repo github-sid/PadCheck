@@ -7,7 +7,7 @@ import {
 import { Navbar } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { WriteReviewButton } from "@/components/write-review-button";
-import { PropertyImage } from "@/components/property-image";
+import { PropertyImageSlider, type SliderImage } from "@/components/property-image-slider";
 import { ReviewCard, Stars, type ReviewCardData } from "@/components/review-card";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
@@ -116,6 +116,7 @@ type Address = {
   lng: string | number | null;
   neighbourhood: string | null;
   ward: string | null;
+  street_view_url: string | null;
   created_at: string;
 };
 
@@ -143,6 +144,7 @@ type Review = {
   rating_amenities: number;
   rating_landlord: number;
   review_text: string | null;
+  photo_urls: string[];
   created_at: string;
 };
 
@@ -203,8 +205,15 @@ export default async function PropertyPage({
     .filter(Boolean)
     .join(", ");
 
+  const sliderImages: SliderImage[] = [
+    ...(address.street_view_url ? [{ url: address.street_view_url, caption: "Street View" }] : []),
+    ...reviews.flatMap((r) =>
+      r.photo_urls.map((url) => ({ url, caption: "Renter photo" }))
+    ),
+  ];
+
   const displayReviews: ReviewCardData[] = reviews.length > 0
-    ? reviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review_text, created_at: r.created_at }))
+    ? reviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review_text, photo_urls: r.photo_urls, created_at: r.created_at }))
     : staticReviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review, created_at: r.created_at, title: r.title, user_name: r.user_name }));
 
   return (
@@ -233,7 +242,7 @@ export default async function PropertyPage({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
             <div className="lg:col-span-6 space-y-12">
 
-              <PropertyImage lat={address.lat} lng={address.lng} address={addressLine} />
+              <PropertyImageSlider images={sliderImages} address={addressLine} />
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   About this property

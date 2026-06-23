@@ -1,13 +1,12 @@
 from uuid import UUID
 
-from app.core.address_normalize import build_canonical_key
 from app.db.connection import get_connection
 from app.models.address import Address
 from app.schemas.address import AddressCreate
 
 _COLUMNS = (
     "id, street_address, unit_number, city, province, postal_code, "
-    "lat, lng, google_place_id, neighbourhood, ward, created_at, updated_at, canonical_key"
+    "lat, lng, google_place_id, neighbourhood, ward, street_view_url, created_at, updated_at"
 )
 
 
@@ -24,9 +23,9 @@ def _row_to_address(row: tuple) -> Address:
         google_place_id=row[8],
         neighbourhood=row[9],
         ward=row[10],
-        created_at=row[11],
-        updated_at=row[12],
-        canonical_key=row[13],
+        street_view_url=row[11],
+        created_at=row[12],
+        updated_at=row[13],
     )
 
 
@@ -41,28 +40,27 @@ def get_address_by_id(address_id: UUID) -> Address | None:
     return _row_to_address(row) if row else None
 
 
-def get_address_by_canonical_key(key: str) -> Address | None:
+def get_address_by_google_place_id(place_id: str) -> Address | None:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT {_COLUMNS} FROM addresses WHERE canonical_key = %s",
-                (key,),
+                f"SELECT {_COLUMNS} FROM addresses WHERE google_place_id = %s",
+                (place_id,),
             )
             row = cur.fetchone()
     return _row_to_address(row) if row else None
 
 
 def create_address(data: AddressCreate) -> Address:
-    key = build_canonical_key(data.street_address, data.unit_number, data.postal_code)
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
                 INSERT INTO addresses (
                     street_address, unit_number, city, province, postal_code,
-                    lat, lng, google_place_id, neighbourhood, ward, canonical_key
+                    lat, lng, google_place_id, neighbourhood, ward
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING {_COLUMNS}
                 """,
                 (
@@ -76,12 +74,21 @@ def create_address(data: AddressCreate) -> Address:
                     data.google_place_id,
                     data.neighbourhood,
                     data.ward,
-                    key,
                 ),
             )
             row = cur.fetchone()
         conn.commit()
     return _row_to_address(row)
+
+
+def update_street_view_url(address_id: UUID, url: str) -> None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE addresses SET street_view_url = %s WHERE id = %s",
+                (url, str(address_id)),
+            )
+        conn.commit()
 
 
 def delete_address(address_id: UUID) -> None:

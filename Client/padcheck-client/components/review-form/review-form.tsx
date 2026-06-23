@@ -61,6 +61,20 @@ export function ReviewForm({
 
     setSubmitting(true);
     try {
+      let photoUrls: string[] = [];
+      if (photos.length > 0) {
+        const form = new FormData();
+        for (const p of photos) form.append("files", p.file);
+        const uploadRes = await fetch(`${API_BASE}/reviews/photos`, {
+          method: "POST",
+          credentials: "include",
+          body: form,
+        });
+        if (!uploadRes.ok) throw new Error("Photo upload failed");
+        const uploadData = await uploadRes.json();
+        photoUrls = uploadData.urls ?? [];
+      }
+
       const res = await fetch(`${API_BASE}/reviews/write/${propertyId}`, {
         method: "POST",
         credentials: "include",
@@ -74,6 +88,7 @@ export function ReviewForm({
           rating_transit: transit,
           rating_amenities: amenities,
           review_text: reviewText,
+          photo_urls: photoUrls,
         }),
       });
 

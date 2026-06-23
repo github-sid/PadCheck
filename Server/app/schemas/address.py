@@ -30,6 +30,7 @@ class AddressResponse(BaseModel):
     google_place_id: str | None
     neighbourhood: str | None
     ward: str | None
+    street_view_url: str | None
     created_at: datetime
     updated_at: datetime
 

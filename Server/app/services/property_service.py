@@ -1,9 +1,12 @@
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
 
-from app.core.address_normalize import build_canonical_key
 from app.core.geoapify import fetch_address, fetch_address_static_data
+from app.core.street_view import fetch_and_upload_street_view
+
+logger = logging.getLogger(__name__)
 from app.repositories import (
     address_community_data_repository,
     address_repository,
@@ -39,24 +42,14 @@ def get_property_page_data(address_id: UUID) -> dict:
     }
 
 
-def find_or_create_from_place_id(address: str) -> AddressResponse:
-    """
-    Main entry point for the search flow.
-    1. Fetch structured address data from Geoapify.
-    2. Compute canonical key and check DB — return immediately if found.
-    3. Persist and return the new record.
-    """
-    
-      
+def find_or_create_from_place_id(place_id: str) -> AddressResponse:
+    address_data: AddressCreate = fetch_address(place_id)
 
-
-
-    address_data: AddressCreate = fetch_address(address)
-    key = build_canonical_key(address_data.street_address, address_data.unit_number, address_data.postal_code)
-
-    existing = address_repository.get_address_by_canonical_key(key)
-    if existing:
-        return AddressResponse.model_validate(existing.__dict__)
+    if address_data.google_place_id:
+        existing = address_repository.get_address_by_google_place_id(address_data.google_place_id)
+        if existing:
+            logger.info("property_service: address already exists id=%s, skipping street view", existing.id)
+            return AddressResponse.model_validate(existing.__dict__)
 
     address = address_repository.create_address(address_data)
 
@@ -69,5 +62,19 @@ def find_or_create_from_place_id(address: str) -> AddressResponse:
     except Exception:
         address_repository.delete_address(address.id)
         raise
+
+    if address_data.lat is not None and address_data.lng is not None:
+        logger.info("property_service: fetching street view for address_id=%s lat=%s lng=%s", address.id, address_data.lat, address_data.lng)
+        s3_url = fetch_and_upload_street_view(
+            address.id, float(address_data.lat), float(address_data.lng)
+        )
+        if s3_url:
+            logger.info("property_service: street view uploaded url=%s", s3_url)
+            address_repository.update_street_view_url(address.id, s3_url)
+            address.street_view_url = s3_url
+        else:
+            logger.info("property_service: no street view url returned for address_id=%s", address.id)
+    else:
+        logger.info("property_service: skipping street view, no coords for address_id=%s", address.id)
 
     return AddressResponse.model_validate(address.__dict__)

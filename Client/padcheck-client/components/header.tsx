@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useIsSignedIn } from "@/lib/use-auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export function Navbar() {
-  const router = useRouter();
-  const loggedIn = useIsSignedIn();
+  const pathname = usePathname();
+  const [loggedIn, recheckAuth] = useIsSignedIn();
 
   const handleSignOut = async () => {
     await fetch(`${API_BASE}/auth/logout`, {
       method: "POST",
       credentials: "include",
     });
-    router.push("/");
+    recheckAuth();
   };
 
   return (
@@ -37,7 +37,7 @@ export function Navbar() {
             </button>
           ) : (
             <Link
-              href="/auth"
+              href={`/auth?returnUrl=${encodeURIComponent(pathname)}`}
               className="text-sm font-medium py-2 px-4 rounded-full ring-1 ring-black/5 bg-neutral-100 text-neutral-700"
             >
               Sign in

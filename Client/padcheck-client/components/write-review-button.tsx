@@ -16,7 +16,7 @@ export function WriteReviewButton({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const isSignedIn = useIsSignedIn();
+  const [isSignedIn] = useIsSignedIn();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -58,7 +58,14 @@ export function WriteReviewButton({
             >
               <X className="size-4" />
             </button>
-            <ReviewForm disabled={!isSignedIn} propertyId={propertyId} />
+            <ReviewForm
+              disabled={!isSignedIn}
+              propertyId={propertyId}
+              onPosted={() => {
+                setOpen(false);
+                router.push(`/property/${propertyId}`);
+              }}
+            />
           </div>
         </div>
       )}

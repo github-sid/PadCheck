@@ -26,6 +26,7 @@ class ReviewCreate(BaseModel):
     construction_present: bool | None = None
     review_text: str | None = None
     red_flags: list[str] = Field(default_factory=list)
+    photo_urls: list[str] = Field(default_factory=list)
 
     # Tenancy window
     tenancy_start: datetime | None = None

@@ -8,7 +8,7 @@ _COLUMNS = (
     "id, address_id, user_id, rating_overall, rating_noise, rating_safety, "
     "rating_transit, rating_amenities, rating_landlord, noise_level_day, "
     "noise_level_night, street_lighting, parking_ease, cell_signal, "
-    "construction_present, review_text, red_flags, ai_summary, "
+    "construction_present, review_text, red_flags, photo_urls, ai_summary, "
     "tenancy_start, tenancy_end, created_at"
 )
 
@@ -32,10 +32,11 @@ def _row_to_review(row: tuple) -> Review:
         construction_present=row[14],
         review_text=row[15],
         red_flags=list(row[16]) if row[16] else [],
-        ai_summary=row[17],
-        tenancy_start=row[18],
-        tenancy_end=row[19],
-        created_at=row[20],
+        photo_urls=list(row[17]) if row[17] else [],
+        ai_summary=row[18],
+        tenancy_start=row[19],
+        tenancy_end=row[20],
+        created_at=row[21],
     )
 
 
@@ -59,10 +60,10 @@ def create_review(review_data: ReviewCreate, user_id: UUID) -> Review:
                     address_id, user_id, rating_overall, rating_noise, rating_safety,
                     rating_transit, rating_amenities, rating_landlord,
                     noise_level_day, noise_level_night, street_lighting, parking_ease, cell_signal,
-                    construction_present, review_text, red_flags,
+                    construction_present, review_text, red_flags, photo_urls,
                     tenancy_start, tenancy_end
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING {_COLUMNS}
                 """,
                 (
@@ -82,6 +83,7 @@ def create_review(review_data: ReviewCreate, user_id: UUID) -> Review:
                     review_data.construction_present,
                     review_data.review_text,
                     review_data.red_flags or [],
+                    review_data.photo_urls or [],
                     review_data.tenancy_start,
                     review_data.tenancy_end,
                 ),

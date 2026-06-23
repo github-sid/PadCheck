@@ -19,4 +19,4 @@ class Address:
     google_place_id: str | None = None
     neighbourhood: str | None = None
     ward: str | None = None
-    canonical_key: str | None = None
+    street_view_url: str | None = None

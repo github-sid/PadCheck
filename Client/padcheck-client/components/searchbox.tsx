@@ -4,11 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Search } from "lucide-react";
 
-setOptions({
-  key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
-  v: "weekly",
-});
-
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 300;
 
@@ -39,6 +34,13 @@ export function SearchBox({ onSelect, onSearch, onQueryChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const justSelectedRef = useRef(false);
+
+  useEffect(() => {
+    setOptions({
+      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+      v: "weekly",
+    });
+  }, []);
 
   function handleQueryChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value;

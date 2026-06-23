@@ -55,9 +55,10 @@ export function HeroSection() {
           >
             <SearchBox
               onSelect={(s) => {
+                console.log("Selected suggestion:", s);
                 setQuery(s.address_line1);
-                // setPlaceId(s.place_id);
-                setPlaceId(s.address_line1)
+                setPlaceId(s.place_id);
+                //setPlaceId(s.address_line1)
                 setError(null);
               }}
               onQueryChange={(q) => {

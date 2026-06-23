@@ -4,6 +4,7 @@ export type ReviewCardData = {
   id: string;
   rating_overall: number;
   review_text: string | null;
+  photo_urls?: string[];
   created_at: string;
   title?: string;
   user_name?: string;
@@ -37,6 +38,19 @@ export function ReviewCard({ review }: { review: ReviewCardData }) {
       )}
       {review.review_text && (
         <p className="text-sm text-neutral-600 leading-relaxed text-pretty">{review.review_text}</p>
+      )}
+      {review.photo_urls && review.photo_urls.length > 0 && (
+        <div className="flex gap-2 flex-wrap pt-1">
+          {review.photo_urls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={url}
+              alt={`Review photo ${i + 1}`}
+              className="size-20 rounded-lg object-cover ring-1 ring-black/5"
+            />
+          ))}
+        </div>
       )}
     </article>
   );

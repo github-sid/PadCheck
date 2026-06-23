@@ -23,6 +23,7 @@ class Review:
     construction_present: bool | None = None
     review_text: str | None = None
     red_flags: list[str] = field(default_factory=list)
+    photo_urls: list[str] = field(default_factory=list)
     ai_summary: str | None = None
     tenancy_start: datetime | None = None
     tenancy_end: datetime | None = None
