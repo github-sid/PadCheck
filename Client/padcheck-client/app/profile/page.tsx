@@ -1,219 +1,123 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { Star, MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { Calendar, Mail, Shield, Pencil } from "lucide-react";
+import { Navbar } from "@/components/header";
+import { Footer } from "@/components/footer";
 
-export const Route = createFileRoute("/profile")({ component: ProfilePage });
-
-type Profile = {
-  id: string;
-  display_name: string;
-  avatar_url: string | null;
-  created_at: string;
+const STATIC_USER = {
+  display_name: "Alex Morgan",
+  email: "alex.morgan@example.com",
+  provider: "email" as "email" | "gmail",
+  role: "user" as "user" | "admin",
+  member_since: "2025-03-12",
 };
 
-type ReviewRow = {
-  id: string;
-  property_id: string;
-  title: string;
-  body: string;
-  rating_landlord: number;
-  rating_value: number;
-  rating_neighborhood: number;
-  rating_maintenance: number;
-  created_at: string;
-  properties: { address: string; city: string } | null;
-};
-
-function ProfilePage() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
-  }, [loading, user, navigate]);
-
-  const { data: profile } = useQuery({
-    queryKey: ["profile", user?.id],
-    enabled: !!user,
-    queryFn: async (): Promise<Profile | null> => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, created_at")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: reviews } = useQuery({
-    queryKey: ["my-reviews", user?.id],
-    enabled: !!user,
-    queryFn: async (): Promise<ReviewRow[]> => {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select(
-          "id, property_id, title, body, rating_landlord, rating_value, rating_neighborhood, rating_maintenance, created_at, properties(address, city)"
-        )
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as ReviewRow[];
-    },
-  });
-
-  const [displayName, setDisplayName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (profile) {
-      setDisplayName(profile.display_name ?? "");
-      setAvatarUrl(profile.avatar_url ?? "");
-    }
-  }, [profile]);
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ display_name: displayName, avatar_url: avatarUrl || null })
-      .eq("id", user.id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Profile updated");
-    qc.invalidateQueries({ queryKey: ["profile", user.id] });
-  }
-
-  async function deleteReview(id: string) {
-    if (!confirm("Delete this review?")) return;
-    const { error } = await supabase.from("reviews").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Review deleted");
-    qc.invalidateQueries({ queryKey: ["my-reviews", user?.id] });
-  }
-
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen bg-[#fcfcfb]">
-        <SiteHeader />
-        <div className="max-w-3xl mx-auto px-6 py-20 text-sm text-neutral-500">Loading…</div>
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-3 border-b border-neutral-100 last:border-0">
+      <Icon className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
+      <div className="flex-1 flex items-baseline justify-between gap-4">
+        <span className="text-xs font-medium uppercase tracking-wider text-neutral-400">{label}</span>
+        <span className="text-sm text-neutral-800">{value}</span>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  const avgRating = (r: ReviewRow) =>
-    (r.rating_landlord + r.rating_value + r.rating_neighborhood + r.rating_maintenance) / 4;
+export default function ProfilePage() {
+  const initials = STATIC_USER.display_name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-[#fcfcfb] text-neutral-800 font-sans">
-      <SiteHeader />
-      <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
-        <header className="flex items-center gap-5">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-16 h-16 rounded-full object-cover ring-1 ring-black/5" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-neutral-200 grid place-items-center text-lg font-medium text-neutral-600">
-              {(displayName || user.email || "?").charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <h1 className="text-2xl font-serif font-medium text-neutral-900">
-              {displayName || user.email}
-            </h1>
-            <p className="text-sm text-neutral-500">{user.email}</p>
-          </div>
-        </header>
+    <div className="min-h-screen bg-brand-surface text-neutral-800 font-sans">
+      <Navbar />
 
-        <section className="bg-white rounded-2xl ring-1 ring-black/5 p-6">
-          <h2 className="text-lg font-medium text-neutral-900 mb-4">Edit profile</h2>
-          <form onSubmit={save} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">
-                Display name
-              </label>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full p-3 text-sm bg-white ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300"
-                required
-              />
+      <section className="py-16 sm:py-12 px-6 sm:px-12">
+        <div className="max-w-3xl mx-auto space-y-8">
+
+          {/* ── Header ── */}
+          <header className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-neutral-200 grid place-items-center text-lg font-semibold text-neutral-600 select-none shrink-0">
+              {initials}
             </div>
             <div>
-              <label className="block text-xs font-medium uppercase tracking-wider text-neutral-500 mb-1.5">
-                Avatar URL
-              </label>
-              <input
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://…"
-                className="w-full p-3 text-sm bg-white ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300"
-              />
+              <h1 className="text-2xl font-serif font-medium text-neutral-900">
+                {STATIC_USER.display_name}
+              </h1>
+              <p className="text-sm text-neutral-500">{STATIC_USER.email}</p>
+              <p className="mt-0.5 text-xs text-neutral-400 flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Member since{" "}
+                {new Date(STATIC_USER.member_since).toLocaleDateString(undefined, {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
             </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="py-2.5 px-5 rounded-xl bg-[#2d332d] text-white text-sm font-medium disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Save changes"}
-            </button>
-          </form>
-        </section>
+          </header>
 
-        <section>
-          <h2 className="text-lg font-medium text-neutral-900 mb-4">
-            Your reviews {reviews ? `(${reviews.length})` : ""}
-          </h2>
-          {reviews && reviews.length === 0 ? (
-            <p className="text-sm text-neutral-500">You haven't posted any reviews yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {reviews?.map((r) => (
-                <li key={r.id} className="bg-white rounded-2xl ring-1 ring-black/5 p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <Link
-                        to="/property/$id"
-                        params={{ id: r.property_id }}
-                        className="text-sm font-medium text-neutral-900 hover:underline flex items-center gap-1.5"
-                      >
-                        <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-                        {r.properties?.address ?? "Property"}{r.properties?.city ? `, ${r.properties.city}` : ""}
-                      </Link>
-                      <h3 className="mt-2 font-serif text-lg text-neutral-900">{r.title}</h3>
-                      <p className="mt-1 text-sm text-neutral-600 line-clamp-3">{r.body}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <div className="flex items-center gap-1 text-sm font-medium text-neutral-900">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        {avgRating(r).toFixed(1)}
-                      </div>
-                      <button
-                        onClick={() => deleteReview(r.id)}
-                        className="text-xs text-neutral-400 hover:text-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-xs text-neutral-400">
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-      <SiteFooter />
+          {/* ── Account info ── */}
+          <section className="bg-white rounded-2xl ring-1 ring-black/5 p-6">
+            <h2 className="text-base font-semibold text-neutral-900 mb-4">Account</h2>
+            <InfoRow icon={Mail} label="Email" value={STATIC_USER.email} />
+            <InfoRow
+              icon={Shield}
+              label="Sign-in method"
+              value={STATIC_USER.provider === "gmail" ? "Google" : "Email & password"}
+            />
+            <InfoRow
+              icon={Calendar}
+              label="Member since"
+              value={new Date(STATIC_USER.member_since).toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            />
+            {STATIC_USER.role !== "user" && (
+              <InfoRow icon={Shield} label="Role" value={STATIC_USER.role} />
+            )}
+          </section>
+
+          {/* ── Edit profile ── */}
+          <section className="bg-white rounded-2xl ring-1 ring-black/5 p-6">
+            <h2 className="text-base font-semibold text-neutral-900 mb-5 flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-neutral-400" />
+              Edit profile
+            </h2>
+            <form className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-neutral-400 mb-1.5">
+                  Display name
+                </label>
+                <input
+                  defaultValue={STATIC_USER.display_name}
+                  className="w-full p-3 text-sm bg-white ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300"
+                />
+              </div>
+              <button
+                type="submit"
+                className="py-2.5 px-5 rounded-xl bg-[#2d332d] text-white text-sm font-medium"
+              >
+                Save changes
+              </button>
+            </form>
+          </section>
+
+        </div>
+      </section>
+
+      <Footer />
     </div>
   );
 }

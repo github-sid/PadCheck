@@ -9,6 +9,7 @@ UserProvider = Literal["email", "gmail"]
 
 class UserBase(BaseModel):
     email: EmailStr
+    display_name: str | None = None
 
 
 class UserCreate(UserBase):

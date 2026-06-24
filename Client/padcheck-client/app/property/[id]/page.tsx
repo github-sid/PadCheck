@@ -5,7 +5,6 @@ import {
   Footprints, Bus, Train, ShoppingCart, Pill, Stethoscope, Hospital, GraduationCap, Trees, Building2,
 } from "lucide-react";
 import { Navbar } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { WriteReviewButton } from "@/components/write-review-button";
 import { PropertyImageSlider, type SliderImage } from "@/components/property-image-slider";
 import { ReviewCard, Stars, type ReviewCardData } from "@/components/review-card";
@@ -217,32 +216,60 @@ export default async function PropertyPage({
     : staticReviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review, created_at: r.created_at, title: r.title, user_name: r.user_name }));
 
   return (
-    <div className="min-h-screen bg-brand-surface text-neutral-800 font-sans">
+    <div className="h-screen overflow-hidden flex flex-col bg-brand-surface text-neutral-800 font-sans">
       <Navbar />
 
-      <section className="py-16 sm:py-12 px-6 sm:px-12">
-        <div className="max-w-6xl mx-auto">
-          <Link href="/" className="text-xs font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-600">
-            ← Back to search
-          </Link>
+      <div className="flex-1 min-h-0 overflow-hidden px-6 sm:px-12">
+        <div className="h-full max-w-6xl mx-auto flex flex-col">
 
-          <div className="mt-6 mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-            <div>
-              <h1 className="text-4xl sm:text-5xl font-serif font-medium text-neutral-900 leading-tight tracking-tight mb-3">
-                {addressLine}
-              </h1>
-              <p className="text-sm text-neutral-500 flex items-center gap-1.5">
-                <MapPin className="size-3.5" />
-                {address.city}, {address.province} {address.postal_code}
-              </p>
-            </div>
-            {/* <WriteReviewButton variant="header" /> */}
+          {/* Back link */}
+          <div className="pt-8 pb-3 shrink-0">
+            <Link href="/" className="text-xs font-medium uppercase tracking-wider text-neutral-400 hover:text-neutral-600">
+              ← Back to search
+            </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
-            <div className="lg:col-span-6 space-y-12">
+          {/* Two-column layout */}
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-x-16">
 
-              <PropertyImageSlider images={sliderImages} address={addressLine} />
+            {/* ── Left: fixed ── */}
+            <div className="lg:col-span-5 min-h-0 overflow-hidden flex flex-col gap-6 py-4">
+              <div className="shrink-0">
+                <h1 className="text-4xl sm:text-5xl font-serif font-medium text-neutral-900 leading-tight tracking-tight mb-3">
+                  {addressLine}
+                </h1>
+                <p className="text-sm text-neutral-500 flex items-center gap-1.5">
+                  <MapPin className="size-3.5" />
+                  {address.city}, {address.province} {address.postal_code}
+                </p>
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <PropertyImageSlider images={sliderImages} address={addressLine} />
+              </div>
+            </div>
+
+            {/* ── Right: scrollable ── */}
+            <div className="lg:col-span-7 min-h-0 overflow-y-auto space-y-10 py-4 pb-12">
+
+              {/* Score + write review */}
+              <div className="p-6 bg-white ring-1 ring-black/5 rounded-2xl flex items-center gap-6">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-serif font-medium text-neutral-900">
+                      {stats.overall > 0 ? stats.overall.toFixed(1) : "—"}
+                    </span>
+                    <span className="text-sm text-neutral-500">/ 5</span>
+                  </div>
+                  <Stars value={stats.overall} />
+                  <p className="mt-2 text-xs text-neutral-500">
+                    {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+                  </p>
+                </div>
+                <div className="h-16 w-px bg-neutral-200/60" />
+                <WriteReviewButton variant="card" propertyId={id} defaultOpen={openReview === "1"} />
+              </div>
+
+              {/* About */}
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   About this property
@@ -266,6 +293,7 @@ export default async function PropertyPage({
                 </dl>
               </div>
 
+              {/* Renter ratings */}
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   Renter ratings
@@ -281,26 +309,8 @@ export default async function PropertyPage({
 
               <LocationCard address={address} />
               <NeighbourhoodCard stat={data.static} />
-            </div>
 
-            <aside className="lg:col-span-6 space-y-8">
-              <div className="p-6 bg-white ring-1 ring-black/5 rounded-2xl flex items-center gap-6">
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-serif font-medium text-neutral-900">
-                      {stats.overall > 0 ? stats.overall.toFixed(1) : "—"}
-                    </span>
-                    <span className="text-sm text-neutral-500">/ 5</span>
-                  </div>
-                  <Stars value={stats.overall} />
-                  <p className="mt-2 text-xs text-neutral-500">
-                    {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
-                  </p>
-                </div>
-                <div className="h-16 w-px bg-neutral-200/60" />
-                <WriteReviewButton variant="card" propertyId={id} defaultOpen={openReview === "1"} />
-              </div>
-
+              {/* Reviews */}
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   Reviews from renters
@@ -311,12 +321,11 @@ export default async function PropertyPage({
                   ))}
                 </div>
               </div>
-            </aside>
+
+            </div>
           </div>
         </div>
-      </section>
-
-      <Footer />
+      </div>
     </div>
   );
 }

@@ -11,3 +11,4 @@ class User:
     provider: str
     role: str
     created_at: datetime
+    display_name: str | None = None

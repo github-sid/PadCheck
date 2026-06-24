@@ -23,6 +23,7 @@ def register_user(data: UserCreate) -> UserResponse:
         email=data.email,
         hashed_password=hashed_password,
         provider=data.provider,
+        display_name=data.display_name,
     )
 
     return UserResponse.model_validate(user)

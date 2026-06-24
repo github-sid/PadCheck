@@ -12,10 +12,11 @@ def _row_to_user(row: tuple) -> UserInDB:
         provider=row[3],
         role=row[4],
         created_at=row[5],
+        display_name=row[6],
     )
 
 
-_USER_COLUMNS = "id, email, hashed_password, provider, role, created_at"
+_USER_COLUMNS = "id, email, hashed_password, provider, role, created_at, display_name"
 
 
 def get_user_by_id(user_id: UUID) -> UserInDB | None:
@@ -52,16 +53,17 @@ def create_user(
     email: str,
     hashed_password: str | None,
     provider: UserProvider,
+    display_name: str | None = None,
 ) -> UserInDB:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (email, hashed_password, provider)
-                VALUES (%s, %s, %s)
-                RETURNING id, email, hashed_password, provider, role, created_at
+                INSERT INTO users (email, hashed_password, provider, display_name)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, email, hashed_password, provider, role, created_at, display_name
                 """,
-                (email.lower(), hashed_password, provider),
+                (email.lower(), hashed_password, provider, display_name),
             )
             row = cur.fetchone()
         conn.commit()

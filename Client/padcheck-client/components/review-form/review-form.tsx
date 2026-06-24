@@ -4,10 +4,22 @@ import { useState } from "react";
 import { SendHorizonal } from "lucide-react";
 import { FormField } from "./form-field";
 import { RatingGrid } from "./rating-grid";
+import { RatingPicker } from "./rating-picker";
 import { PhotoUploader, type PhotoEntry } from "./photo-uploader";
 import { SignInBanner } from "./sign-in-banner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+const RED_FLAG_OPTIONS = [
+  "Mould / mildew",
+  "Pest infestation",
+  "Unresponsive landlord",
+  "Hidden fees",
+  "Unsafe conditions",
+  "Noise disturbances",
+  "Poor maintenance",
+  "Illegal landlord entry",
+];
 
 export function ReviewForm({
   propertyId,
@@ -18,17 +30,43 @@ export function ReviewForm({
   disabled?: boolean;
   onPosted?: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  // Core ratings (required)
   const [landlord, setLandlord] = useState(0);
   const [noise, setNoise] = useState(0);
   const [safety, setSafety] = useState(0);
   const [transit, setTransit] = useState(0);
   const [amenities, setAmenities] = useState(0);
+
+  // Environmental details (optional)
+  const [noiseLevelDay, setNoiseLevelDay] = useState(0);
+  const [noiseLevelNight, setNoiseLevelNight] = useState(0);
+  const [streetLighting, setStreetLighting] = useState(0);
+  const [parkingEase, setParkingEase] = useState(0);
+  const [cellSignal, setCellSignal] = useState(0);
+  const [constructionPresent, setConstructionPresent] = useState<boolean | null>(null);
+
+  // Red flags (optional multi-select)
+  const [redFlags, setRedFlags] = useState<string[]>([]);
+
+  // Tenancy window (optional)
+  const [tenancyStart, setTenancyStart] = useState("");
+  const [tenancyEnd, setTenancyEnd] = useState("");
+  const [currentTenant, setCurrentTenant] = useState(false);
+
+  // Written review
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
   const [photos, setPhotos] = useState<PhotoEntry[]>([]);
+
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  function toggleRedFlag(flag: string) {
+    setRedFlags((prev) =>
+      prev.includes(flag) ? prev.filter((f) => f !== flag) : [...prev, flag]
+    );
+  }
 
   function handleAddPhotos(entries: PhotoEntry[]) {
     setPhotos((prev) => [...prev, ...entries]);
@@ -87,6 +125,15 @@ export function ReviewForm({
           rating_safety: safety,
           rating_transit: transit,
           rating_amenities: amenities,
+          noise_level_day: noiseLevelDay || null,
+          noise_level_night: noiseLevelNight || null,
+          street_lighting: streetLighting || null,
+          parking_ease: parkingEase || null,
+          cell_signal: cellSignal || null,
+          construction_present: constructionPresent,
+          red_flags: redFlags.length > 0 ? redFlags : null,
+          tenancy_start: tenancyStart ? `${tenancyStart}-01` : null,
+          tenancy_end: !currentTenant && tenancyEnd ? `${tenancyEnd}-01` : null,
           review_text: reviewText,
           photo_urls: photoUrls,
         }),
@@ -98,9 +145,11 @@ export function ReviewForm({
       }
 
       for (const p of photos) URL.revokeObjectURL(p.preview);
-      setTitle("");
-      setBody("");
+      setTitle(""); setBody("");
       setLandlord(0); setNoise(0); setSafety(0); setTransit(0); setAmenities(0);
+      setNoiseLevelDay(0); setNoiseLevelNight(0); setStreetLighting(0);
+      setParkingEase(0); setCellSignal(0); setConstructionPresent(null);
+      setRedFlags([]); setTenancyStart(""); setTenancyEnd(""); setCurrentTenant(false);
       setPhotos([]);
       setSuccessMsg("Review posted!");
       onPosted?.();
@@ -136,6 +185,8 @@ export function ReviewForm({
         )}
 
         <fieldset disabled={disabled} className="space-y-6 disabled:opacity-50">
+
+          {/* ── Core ratings ── */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">Ratings</p>
             <RatingGrid
@@ -146,6 +197,111 @@ export function ReviewForm({
 
           <div className="h-px bg-neutral-100" />
 
+          {/* ── Environmental details ── */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+              Environmental details
+            </p>
+            <p className="text-xs text-neutral-400 mb-4">Optional — helps build neighbourhood averages</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <RatingPicker label="Daytime noise" value={noiseLevelDay} onChange={setNoiseLevelDay} />
+              <RatingPicker label="Night-time noise" value={noiseLevelNight} onChange={setNoiseLevelNight} />
+              <RatingPicker label="Street lighting" value={streetLighting} onChange={setStreetLighting} />
+              <RatingPicker label="Parking ease" value={parkingEase} onChange={setParkingEase} />
+              <RatingPicker label="Cell signal" value={cellSignal} onChange={setCellSignal} />
+            </div>
+
+            {/* Construction present */}
+            <div className="mt-4">
+              <p className="text-sm font-medium text-neutral-700 mb-2">Active construction nearby?</p>
+              <div className="flex gap-2">
+                {([true, false] as const).map((val) => (
+                  <button
+                    key={String(val)}
+                    type="button"
+                    onClick={() =>
+                      setConstructionPresent((prev) => (prev === val ? null : val))
+                    }
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium ring-1 transition-colors ${
+                      constructionPresent === val
+                        ? "bg-neutral-800 text-white ring-neutral-800"
+                        : "bg-white text-neutral-600 ring-neutral-200 hover:bg-neutral-50"
+                    }`}
+                  >
+                    {val ? "Yes" : "No"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="h-px bg-neutral-100" />
+
+          {/* ── Red flags ── */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">Red flags</p>
+            <p className="text-xs text-neutral-400 mb-3">Select any that apply</p>
+            <div className="flex flex-wrap gap-2">
+              {RED_FLAG_OPTIONS.map((flag) => (
+                <button
+                  key={flag}
+                  type="button"
+                  onClick={() => toggleRedFlag(flag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition-colors ${
+                    redFlags.includes(flag)
+                      ? "bg-red-600 text-white ring-red-600"
+                      : "bg-white text-neutral-600 ring-neutral-200 hover:bg-neutral-50"
+                  }`}
+                >
+                  {flag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-px bg-neutral-100" />
+
+          {/* ── Tenancy window ── */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-4">
+              When did you live here?
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <FormField label="Move-in date">
+                <input
+                  type="month"
+                  value={tenancyStart}
+                  onChange={(e) => setTenancyStart(e.target.value)}
+                  className="w-full px-4 py-3 text-sm bg-white ring-1 ring-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-300 transition-shadow"
+                />
+              </FormField>
+              <FormField label="Move-out date">
+                <input
+                  type="month"
+                  value={tenancyEnd}
+                  onChange={(e) => setTenancyEnd(e.target.value)}
+                  disabled={currentTenant}
+                  className="w-full px-4 py-3 text-sm bg-white ring-1 ring-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-300 disabled:opacity-40 transition-shadow"
+                />
+                <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={currentTenant}
+                    onChange={(e) => {
+                      setCurrentTenant(e.target.checked);
+                      if (e.target.checked) setTenancyEnd("");
+                    }}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-neutral-500">I currently live here</span>
+                </label>
+              </FormField>
+            </div>
+          </div>
+
+          <div className="h-px bg-neutral-100" />
+
+          {/* ── Written review ── */}
           <FormField label="Headline">
             <input
               value={title}

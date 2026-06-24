@@ -14,6 +14,7 @@ export const Auth = () => {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +30,15 @@ export const Auth = () => {
 
     try {
       if (mode === "signup") {
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setLoading(false);
+          return;
+        }
         const res = await fetch(`${API_BASE}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, provider: "email" }),
+          body: JSON.stringify({ email, password, provider: "email", display_name: displayName.trim() || null }),
         });
         if (!res.ok) {
           const data = await res.json();
@@ -71,6 +77,7 @@ export const Auth = () => {
     setMode(mode === "signin" ? "signup" : "signin");
     setError(null);
     setPassword("");
+    setConfirmPassword("");
     setDisplayName("");
   };
 
@@ -131,6 +138,17 @@ export const Auth = () => {
             required
             className="w-full p-3 text-sm bg-white ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300"
           />
+          {mode === "signup" && (
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              minLength={8}
+              required
+              className="w-full p-3 text-sm bg-white ring-1 ring-black/5 rounded-xl focus:outline-none focus:ring-neutral-300"
+            />
+          )}
           <button
             type="submit"
             disabled={loading}
