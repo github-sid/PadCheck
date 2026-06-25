@@ -1,8 +1,8 @@
 from fastapi import HTTPException, status
 
 from app.core.auth import create_access_token, hash_password, verify_password
-from app.repositories.user_repository import create_user, get_user_by_email
-from app.schemas.user import UserCreate, UserResponse
+from app.repositories.user_repository import create_user, get_user_by_email, update_user
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.schemas.login import LoginRequest
 from app.models.user import User
 
@@ -40,6 +40,11 @@ def login_user(data: LoginRequest) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
     return create_access_token(user.id, user.role)
+
+
+def update_user_profile(user_id, data: UserUpdate) -> UserResponse:
+    user = update_user(user_id, data.display_name)
+    return UserResponse.model_validate(user)
 
 
 def google_upsert_user(email: str) -> User:

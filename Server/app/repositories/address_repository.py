@@ -51,7 +51,7 @@ def get_address_by_google_place_id(place_id: str) -> Address | None:
     return _row_to_address(row) if row else None
 
 
-def create_address(data: AddressCreate) -> Address:
+def create_address(data: AddressCreate) -> Address | None:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -61,6 +61,7 @@ def create_address(data: AddressCreate) -> Address:
                     lat, lng, google_place_id, neighbourhood, ward
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (google_place_id) DO NOTHING
                 RETURNING {_COLUMNS}
                 """,
                 (
@@ -78,7 +79,7 @@ def create_address(data: AddressCreate) -> Address:
             )
             row = cur.fetchone()
         conn.commit()
-    return _row_to_address(row)
+    return _row_to_address(row) if row else None
 
 
 def update_street_view_url(address_id: UUID, url: str) -> None:

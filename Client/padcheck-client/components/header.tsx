@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useIsSignedIn } from "@/lib/use-auth";
 import { UserMenu } from "@/components/user-menu";
 import { SearchBox } from "@/components/searchbox";
+import { Spinner } from "@/components/spinner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -64,15 +65,18 @@ export function Navbar() {
             <button
               type="submit"
               disabled={!placeId || searching}
-              className="shrink-0 mr-2 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-medium disabled:opacity-40"
+              className="shrink-0 mr-2 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-medium disabled:opacity-40 flex items-center gap-1.5"
             >
-              {searching ? "…" : "Go"}
+              {searching && <Spinner />}
+              {searching ? "Searching" : "Go"}
             </button>
           </form>
         )}
 
         <div className="ml-auto flex items-center gap-6 sm:gap-8">
-          {loggedIn && user ? (
+          {loggedIn === null ? (
+            <div className="w-8 h-8 rounded-full bg-neutral-200 animate-pulse" />
+          ) : loggedIn && user ? (
             <UserMenu user={user} onSignOut={handleSignOut} />
           ) : (
             <Link

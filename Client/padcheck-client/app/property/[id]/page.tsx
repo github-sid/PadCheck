@@ -7,102 +7,11 @@ import {
 import { Navbar } from "@/components/header";
 import { WriteReviewButton } from "@/components/write-review-button";
 import { PropertyImageSlider, type SliderImage } from "@/components/property-image-slider";
-import { ReviewCard, Stars, type ReviewCardData } from "@/components/review-card";
+import { Stars, type ReviewCardData } from "@/components/review-card";
+import { ReviewList } from "@/components/review-list";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-const staticReviews = [
-  {
-    id: "demo-1",
-    title: "Quiet and well-maintained building",
-    review:
-      "Lived here for about a year. The building was generally clean, management responded quickly to maintenance requests, and noise levels were low.",
-    rating_overall: 5,
-    created_at: "2026-01-15",
-    user_name: "Alex M.",
-  },
-  {
-    id: "demo-2",
-    title: "Great transit access",
-    review:
-      "Very convenient location with bus and subway options nearby. Commute to downtown was straightforward and reliable.",
-    rating_overall: 4,
-    created_at: "2026-02-03",
-    user_name: "Sarah K.",
-  },
-  {
-    id: "demo-3",
-    title: "Good value for the area",
-    review:
-      "Rent was competitive compared to nearby buildings. Amenities were basic but everything worked as expected.",
-    rating_overall: 4,
-    created_at: "2026-02-20",
-    user_name: "Daniel R.",
-  },
-  {
-    id: "demo-4",
-    title: "Friendly neighbours",
-    review:
-      "Most residents were respectful and friendly. Common areas stayed relatively clean throughout the year.",
-    rating_overall: 5,
-    created_at: "2026-03-05",
-    user_name: "Emma T.",
-  },
-  {
-    id: "demo-5",
-    title: "Occasional maintenance delays",
-    review:
-      "Overall experience was positive, though a few maintenance requests took longer than expected during busy periods.",
-    rating_overall: 3,
-    created_at: "2026-03-18",
-    user_name: "Michael L.",
-  },
-  {
-    id: "demo-6",
-    title: "Safe neighbourhood",
-    review:
-      "Felt comfortable walking around during the evening. Nearby stores and services made daily errands easy.",
-    rating_overall: 5,
-    created_at: "2026-04-02",
-    user_name: "Jessica P.",
-  },
-  {
-    id: "demo-7",
-    title: "Parking was convenient",
-    review:
-      "Having dedicated parking was a major benefit. Visitor parking availability varied depending on the time of day.",
-    rating_overall: 4,
-    created_at: "2026-04-15",
-    user_name: "Ryan C.",
-  },
-  {
-    id: "demo-8",
-    title: "Decent amenities",
-    review:
-      "Gym and laundry facilities were well maintained. Would have liked more shared community spaces.",
-    rating_overall: 4,
-    created_at: "2026-05-01",
-    user_name: "Olivia S.",
-  },
-  {
-    id: "demo-9",
-    title: "Responsive property management",
-    review:
-      "Management communicated clearly regarding building updates and maintenance schedules.",
-    rating_overall: 5,
-    created_at: "2026-05-14",
-    user_name: "Nathan B.",
-  },
-  {
-    id: "demo-10",
-    title: "Solid rental experience",
-    review:
-      "No major issues during my tenancy. The property was accurately represented and move-in was smooth.",
-    rating_overall: 4,
-    created_at: "2026-05-28",
-    user_name: "Sophia W.",
-  },
-];
 
 type Address = {
   id: string;
@@ -211,9 +120,13 @@ export default async function PropertyPage({
     ),
   ];
 
-  const displayReviews: ReviewCardData[] = reviews.length > 0
-    ? reviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review_text, photo_urls: r.photo_urls, created_at: r.created_at }))
-    : staticReviews.map((r) => ({ id: r.id, rating_overall: r.rating_overall, review_text: r.review, created_at: r.created_at, title: r.title, user_name: r.user_name }));
+  const displayReviews: ReviewCardData[] = reviews.map((r) => ({
+    id: r.id,
+    rating_overall: r.rating_overall,
+    review_text: r.review_text,
+    photo_urls: r.photo_urls,
+    created_at: r.created_at,
+  }));
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-brand-surface text-neutral-800 font-sans">
@@ -315,11 +228,7 @@ export default async function PropertyPage({
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-6">
                   Reviews from renters
                 </h2>
-                <div className="space-y-8">
-                  {displayReviews.map((r) => (
-                    <ReviewCard key={r.id} review={r} />
-                  ))}
-                </div>
+                <ReviewList reviews={displayReviews} />
               </div>
 
             </div>

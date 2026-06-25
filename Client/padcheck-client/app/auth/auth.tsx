@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/header";
+import { Spinner } from "@/components/spinner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -16,6 +17,7 @@ export const Auth = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +71,7 @@ export const Auth = () => {
   };
 
   function handleGoogleSignIn() {
+    setGoogleLoading(true);
     const redirect = getRedirectUrl();
     window.location.href = `${API_BASE}/auth/google?return_url=${encodeURIComponent(redirect)}`;
   }
@@ -96,9 +99,11 @@ export const Auth = () => {
 
         <button
           onClick={handleGoogleSignIn}
-          className="w-full py-3 rounded-xl ring-1 ring-neutral-200 bg-white text-sm font-medium text-neutral-700 mb-6 hover:bg-neutral-50"
+          disabled={googleLoading}
+          className="w-full py-3 rounded-xl ring-1 ring-neutral-200 bg-white text-sm font-medium text-neutral-700 mb-6 hover:bg-neutral-50 disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          Continue with Google
+          {googleLoading && <Spinner className="border-neutral-400 border-t-transparent" />}
+          {googleLoading ? "Redirecting…" : "Continue with Google"}
         </button>
 
         <div className="flex items-center gap-3 mb-6">
@@ -152,15 +157,12 @@ export const Auth = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-brand-primary text-white font-medium text-sm disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-brand-primary text-white font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
+            {loading && <Spinner />}
             {loading
-              ? mode === "signin"
-                ? "Signing in…"
-                : "Creating account…"
-              : mode === "signin"
-                ? "Sign in"
-                : "Sign up"}
+              ? mode === "signin" ? "Signing in…" : "Creating account…"
+              : mode === "signin" ? "Sign in" : "Sign up"}
           </button>
         </form>
 

@@ -7,6 +7,7 @@ import { RatingGrid } from "./rating-grid";
 import { RatingPicker } from "./rating-picker";
 import { PhotoUploader, type PhotoEntry } from "./photo-uploader";
 import { SignInBanner } from "./sign-in-banner";
+import { Spinner } from "@/components/spinner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -335,7 +336,10 @@ export function ReviewForm({
           className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-brand-primary text-white font-medium text-sm transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {submitting ? (
-            "Posting…"
+            <>
+              <Spinner />
+              Posting…
+            </>
           ) : disabled ? (
             "Sign in to review"
           ) : (

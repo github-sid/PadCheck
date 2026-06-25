@@ -49,6 +49,18 @@ def get_user_by_email(email: str) -> UserInDB | None:
     return _row_to_user(row)
 
 
+def update_user(user_id: UUID, display_name: str | None) -> UserInDB:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE users SET display_name = %s WHERE id = %s RETURNING {_USER_COLUMNS}",
+                (display_name, str(user_id)),
+            )
+            row = cur.fetchone()
+        conn.commit()
+    return _row_to_user(row)
+
+
 def create_user(
     email: str,
     hashed_password: str | None,

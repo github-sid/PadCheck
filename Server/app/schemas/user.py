@@ -34,3 +34,7 @@ class UserResponse(UserBase):
 class UserInDB(UserResponse):
     hashed_password: str | None = None
 
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+

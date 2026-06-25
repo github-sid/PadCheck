@@ -21,39 +21,45 @@ _GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 # State is signed with our secret key so we never need to store it server-side.
 # Format sent to Google:  "<random>.<hmac-signature>"
 
-def _sign_state(token: str) -> str:
+def _sign_state(payload: str) -> str:
     return hmac.new(
         settings.secret_key.encode(),
-        token.encode(),
+        payload.encode(),
         hashlib.sha256,
     ).hexdigest()
 
 
-def _make_state() -> str:
+def _make_state(return_url: str = "/") -> str:
     token = secrets.token_urlsafe(32)
-    return f"{token}.{_sign_state(token)}"
+    payload = f"{token}|{return_url}"
+    return f"{payload}.{_sign_state(payload)}"
 
 
-def _verify_state(state: str) -> bool:
+def _verify_state(state: str) -> tuple[bool, str]:
     try:
-        token, sig = state.rsplit(".", 1)
-        return hmac.compare_digest(_sign_state(token), sig)
+        payload, sig = state.rsplit(".", 1)
+        if not hmac.compare_digest(_sign_state(payload), sig):
+            return False, "/"
+        _, return_url = payload.split("|", 1)
+        return True, return_url if return_url.startswith("/") else "/"
     except ValueError:
-        return False
+        return False, "/"
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/google")
-def google_login() -> RedirectResponse:
+def google_login(return_url: str = Query(default="/")) -> RedirectResponse:
     """Redirect the browser to Google's OAuth consent screen."""
+    if not return_url.startswith("/"):
+        return_url = "/"
     params = urlencode({
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
-        "state": _make_state(),
+        "state": _make_state(return_url),
     })
     return RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
 
@@ -72,7 +78,8 @@ def google_callback(
     5. Mint our JWT and set it as an HttpOnly cookie.
     6. Redirect to the frontend.
     """
-    if not _verify_state(state):
+    valid, return_url = _verify_state(state)
+    if not valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state")
 
     # Exchange authorisation code for Google tokens
@@ -122,7 +129,7 @@ def google_callback(
     # Set JWT as an HttpOnly cookie and redirect to the frontend.
     # HttpOnly = JavaScript on the page can NEVER read this cookie.
     # The browser attaches it automatically on every request to this domain.
-    response = RedirectResponse(url=settings.frontend_url, status_code=302)
+    response = RedirectResponse(url=f"{settings.frontend_url}{return_url}", status_code=302)
     response.set_cookie(
         key="access_token",
         value=jwt_token,
